@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>시험기간 교무실 호출</title>
+<style>
+:root{--card:rgba(255,255,255,.94);--text:#1d2330;--muted:#6b7385;--pri:#2f6bff;--red:#e03131;--line:#d9dde6;--bg:#f5f6f8;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--card:rgba(28,32,41,.95);--text:#eef0f5;--muted:#9aa3b5;--pri:#6b94ff;--line:#3a4052;--bg:#12141a;color-scheme:dark}}
+:root[data-theme="dark"]{--card:rgba(28,32,41,.95);--text:#eef0f5;--muted:#9aa3b5;--pri:#6b94ff;--line:#3a4052;--bg:#12141a;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;line-height:1.5;background:#e9e2d0}
+#scene{position:fixed;inset:0;width:100%;height:100%;z-index:-1}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) #scene{filter:brightness(.55)}}
+main{max-width:560px;margin:0 auto;padding:18px 14px 50px}
+.sign{display:inline-block;background:#2f5d3a;color:#fff;border:4px solid #8a5a2b;border-radius:8px;padding:6px 18px;font-size:20px;font-weight:800;margin:6px 0 14px;box-shadow:0 3px 8px rgba(0,0,0,.3)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+.step{font-size:12px;color:var(--muted);font-weight:700}
+h2{font-size:18px;margin:2px 0 8px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+select,input{width:100%;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
+.three{display:flex;gap:8px}.three>div{flex:1}
+.chips,.tcs,.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chip,.tc{padding:14px 10px;font-size:15px;font-weight:700;border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);cursor:pointer}
+.tc.sel{border-color:var(--pri);background:var(--pri);color:#fff}
+button.main,button.sm{background:var(--pri);color:#fff;border:0;border-radius:12px;font-weight:800;cursor:pointer}
+button.main{width:100%;margin-top:14px;padding:14px;font-size:17px}
+button.main:disabled{opacity:.4;cursor:default}
+button.sm{padding:8px 11px;font-size:13px;border-radius:9px}
+button.back{background:none;border:0;color:var(--muted);font-size:14px;cursor:pointer;padding:6px 0}
+.m{color:var(--muted);font-size:13px}.err{color:var(--red);font-size:14px;min-height:20px;margin-top:6px}
+.big-status{font-size:22px;font-weight:800;margin:6px 0}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+.row.urgent{border-color:var(--red);background:rgba(224,49,49,.08)}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--line)}
+.bt{display:flex;gap:6px}
+.flash{animation:fl .5s 3}@keyframes fl{50%{background:rgba(47,107,255,.25)}}
+.v{display:none}.v.on{display:block}
+#sw{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:8px;display:none;z-index:5}
+</style>
+</head>
+<body>
+<svg id="scene" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+ <rect width="800" height="600" fill="#e9e2d0"/><rect y="380" width="800" height="220" fill="#c9a46b"/>
+ <g stroke="#b88f55" stroke-width="2"><path d="M0 430H800M0 490H800M0 550H800"/></g>
+ <rect x="60" y="70" width="190" height="140" fill="#bfe3ff" stroke="#fff" stroke-width="8"/><path d="M155 70V210M60 140H250" stroke="#fff" stroke-width="6"/>
+ <rect x="300" y="90" width="200" height="110" fill="#c8955a" stroke="#8a5a2b" stroke-width="6"/>
+ <rect x="318" y="105" width="50" height="38" fill="#fff"/><rect x="380" y="112" width="44" height="50" fill="#ffe27a"/><rect x="438" y="104" width="46" height="40" fill="#bfe3ff"/><rect x="330" y="152" width="60" height="30" fill="#fff"/>
+ <rect x="585" y="34" width="140" height="38" rx="6" fill="#2f5d3a" stroke="#8a5a2b" stroke-width="4"/><text x="655" y="61" text-anchor="middle" font-size="22" font-weight="800" fill="#fff" font-family="sans-serif">교무실</text>
+ <rect x="600" y="90" width="110" height="290" fill="#8a5a2b"/><rect x="620" y="115" width="70" height="90" fill="#bfe3ff"/><circle cx="685" cy="250" r="7" fill="#e6c34a"/>
+ <g fill="#a87b45" stroke="#7a5429" stroke-width="3"><rect x="40" y="400" width="220" height="40" rx="4"/><rect x="290" y="420" width="220" height="40" rx="4"/><rect x="60" y="500" width="240" height="44" rx="4"/><rect x="420" y="510" width="240" height="44" rx="4"/></g>
+ <g fill="#33384a"><rect x="110" y="360" width="60" height="40" rx="3"/><rect x="360" y="380" width="60" height="40" rx="3"/><rect x="140" y="458" width="60" height="42" rx="3"/><rect x="500" y="468" width="60" height="42" rx="3"/></g>
+ <rect x="740" y="330" width="26" height="50" fill="#9b5a3a"/><circle cx="753" cy="315" r="28" fill="#4f9d5a"/>
+</svg>
+<button class="sm" id="sw"></button>
+<main>
+
+<section class="v on" id="load"><div class="sign">🏫 교무실 호출</div><div class="card">불러오는 중…</div></section>
+
+<section class="v" id="noadmin"><div class="sign">🔒 교사 전용</div>
+ <div class="card">교사(편집자) 권한이 있어야 볼 수 있어요.<br><span class="m">학생은 학생용 링크로 들어와 주세요.</span></div></section>
+
+<section class="v" id="nolog"><div class="sign">🔒 로그인이 필요해요</div>
+ <div class="card">이 앱은 Claude에 로그인한 상태에서, 앱 주인이 초대한 사람만 쓸 수 있어요.<br><span class="m">학생은 "기여자", 선생님은 "편집자"로 초대돼야 해요.</span></div></section>
+
+<section class="v" id="form">
+ <div class="sign">🏫 교무실 호출</div>
+ <div class="card">
+  <div class="step">1 / 2 · 내 정보와 사유</div>
+  <h2>누구세요?</h2>
+  <div class="three">
+   <div><label>학년</label><select id="g"><option value="">선택</option><option>1</option><option>2</option><option>3</option></select></div>
+   <div><label>반</label><select id="c"><option value="">선택</option></select></div>
+   <div><label>번호</label><select id="n"><option value="">선택</option></select></div>
+  </div>
+  <h2 style="margin-top:18px">무슨 일이에요? <span class="m">(누르면 다음으로)</span></h2>
+  <div class="chips">
+   <button class="chip" data-r="q">📚 학습 질문</button><button class="chip" data-r="s">🤒 질병·몸이 안 좋음</button>
+   <button class="chip" data-r="d">📄 서류 제출·확인</button><button class="chip" data-r="c">💬 상담</button>
+   <button class="chip" data-r="o" style="grid-column:span 2">✏️ 기타</button>
+  </div>
+  <div class="err" id="ferr"></div>
+ </div>
+</section>
+
+<section class="v" id="step2">
+ <div class="sign">🏫 교무실 호출</div>
+ <div class="card">
+  <button class="back" id="back">← 이전</button>
+  <div class="step">2 / 2 · 선생님 선택</div>
+  <div class="m" id="sum"></div>
+  <h2>어느 선생님을 부를까요?</h2>
+  <div id="tcbox"><label>선생님을 골라요</label><div class="tcs" id="tcs"></div></div>
+  <label>선생님 이름 (목록에 없으면 직접 입력)</label><input id="tin" maxlength="20" placeholder="예: 수학 김선생님">
+  <div class="err" id="serr"></div>
+  <button class="main" id="send" disabled>호출하기</button>
+ </div>
+ <p class="m" style="background:var(--card);padding:6px 10px;border-radius:8px">학년·반·번호만 전달돼요. 시험기간이 끝나면 기록은 삭제돼요.</p>
+</section>
+
+<section class="v" id="status">
+ <div class="sign">📨 호출 상태</div>
+ <div class="card"><div class="m" id="who"></div><div class="big-status" id="stt"></div><div class="m" id="pos"></div>
+ <button class="main" id="again" style="display:none">새 호출 보내기</button></div>
+</section>
+
+<section class="v" id="teacher">
+ <div class="sign">🏫 교무실 대시보드</div>
+ <div class="card" id="tl"></div>
+ <div class="card"><b>선생님 목록 편집</b><div class="m">빈 칸에 이름을 쓰고 저장하면 학생 화면에 선택 버튼으로 나와요. (빈 칸은 안 보여요)</div>
+  <div class="grid" id="tgrid" style="margin-top:8px"></div>
+  <button class="main" id="tsave" style="margin-top:10px">저장</button><div class="m" id="tmsg"></div></div>
+ <div class="card"><b>통계</b><div class="m" id="st" style="margin:6px 0 12px"></div>
+  <button class="sm" id="wipe" style="background:var(--red)">모든 기록 삭제</button></div>
+</section>
+
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const HASH=location.hash.replace('#','');
+const REASONS={q:'학습 질문',s:'질병·몸이 안 좋음',d:'서류 제출·확인',c:'상담',o:'기타'};
+const STATUS={wait:'대기 중',seen:'선생님이 확인했어요',going:'선생님이 가는 중이에요',done:'처리 완료'};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let db=null,ME=null,ADMIN=false,view='student',stu='form',ALL=[],TEACH=[],sel={r:null,t:null},seen=null,ac=null,cur='load';
+function show(id){cur=id;document.querySelectorAll('.v').forEach(e=>e.classList.toggle('on',e.id===id));
+ const b=$('sw');b.style.display=ADMIN&&!HASH&&id!=='nolog'&&id!=='load'?'block':'none';b.textContent=view==='teacher'?'🎒 학생 화면 보기':'👩‍🏫 교사 화면'}
+for(let i=1;i<=15;i++)$('c').add(new Option(i+'반',i));
+for(let i=1;i<=40;i++)$('n').add(new Option(i+'번',i));
+for(let i=0;i<10;i++){const e=document.createElement('input');e.maxLength=20;e.placeholder=(i+1)+'번 칸';$('tgrid').appendChild(e)}
+document.addEventListener('click',()=>{try{ac=ac||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}},{once:true});
+function beep(){try{const o=ac.createOscillator(),g=ac.createGain();o.connect(g);g.connect(ac.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(ac.currentTime+.35)}catch(e){}}
+
+/* 학생 */
+function upd(){sel.t=$('tin').value.trim();$('send').disabled=!sel.t;document.querySelectorAll('.tc').forEach(x=>x.classList.toggle('sel',x.dataset.t===sel.t))}
+function buildT(){$('tcbox').style.display=TEACH.length?'block':'none';
+ $('tcs').innerHTML=TEACH.map(t=>`<button class="tc" data-t="${esc(t)}">${esc(t)}</button>`).join('');upd()}
+document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
+ const g=$('g').value,c=$('c').value,n=$('n').value;
+ if(!g||!c||!n){$('ferr').textContent='학년·반·번호를 먼저 선택해 주세요.';return}
+ $('ferr').textContent='';sel={r:b.dataset.r,t:null};$('tin').value='';$('serr').textContent='';
+ $('sum').textContent=`${g}학년 ${c}반 ${n}번 · ${REASONS[sel.r]}`;buildT();stu='step2';render()});
+$('tcs').onclick=e=>{const b=e.target.closest('.tc');if(!b)return;$('tin').value=b.dataset.t;upd()};
+$('tin').oninput=upd;
+$('back').onclick=()=>{stu='form';render()};
+$('send').onclick=async()=>{
+ if(!sel.t)return;$('send').disabled=true;
+ try{await db.doc('calls/'+ME).set({grade:$('g').value,cls:$('c').value,num:$('n').value,reason:sel.r,teacher:sel.t,t:Date.now(),status:'wait'});stu='status';render()}
+ catch(e){$('serr').textContent='호출 실패 — '+(e&&e.code==='invalid_argument'?'쓰기 권한이 없어요 (기여자로 초대가 필요해요)':(e&&e.message)||'다시 시도해 주세요');$('send').disabled=false}};
+$('again').onclick=()=>{stu='form';render()};
+
+/* 교사 */
+$('tl').onclick=async e=>{const b=e.target.closest('button');if(!b)return;const s=b.dataset.s;
+ try{await db.doc('calls/'+b.dataset.id).update(s==='done'?{status:s,doneAt:Date.now()}:{status:s})}catch(x){alert('저장 실패: '+((x&&x.message)||''))}};
+$('tsave').onclick=async()=>{const list=[...$('tgrid').children].map(e=>e.value.trim()).filter(Boolean);
+ try{await db.doc('config/teachers').set({list});$('tmsg').textContent='저장했어요 ✓'}catch(e){$('tmsg').textContent='저장 실패 — '+((e&&e.message)||'')}};
+$('wipe').onclick=async()=>{if(!confirm('모든 호출 기록을 삭제할까요? 되돌릴 수 없어요.'))return;
+ try{for(const x of ALL)await db.doc('calls/'+x.id).delete()}catch(e){alert('삭제 실패: '+((e&&e.message)||''))}};
+$('sw').onclick=()=>{view=view==='teacher'?'student':'teacher';render()};
+function renderT(){
+ const act=ALL.filter(x=>x.status!=='done').sort((a,b)=>(b.reason==='s')-(a.reason==='s')||a.t-b.t);
+ $('tl').innerHTML=act.length?act.map(x=>`<div class="row ${x.reason==='s'?'urgent':''}"><div><b>${esc(x.grade)}학년 ${esc(x.cls)}반 ${esc(x.num)}번</b> <span class="tag">${esc(REASONS[x.reason]||'기타')}</span>
+  <div class="m">${Math.max(0,Math.floor((Date.now()-x.t)/60000))}분 전 · ${esc(STATUS[x.status]||'')}${x.teacher?' · '+esc(x.teacher):''}</div></div>
+  <div class="bt"><button class="sm" data-id="${esc(x.id)}" data-s="seen">확인</button><button class="sm" data-id="${esc(x.id)}" data-s="going">가는 중</button><button class="sm" data-id="${esc(x.id)}" data-s="done">완료</button></div></div>`).join(''):'<p class="m">대기 중인 호출이 없어요 🎉</p>';
+ const dn=ALL.filter(x=>x.status==='done'&&x.doneAt),cnt={};
+ ALL.forEach(x=>{const k=REASONS[x.reason]||'기타';cnt[k]=(cnt[k]||0)+1});
+ const avg=dn.length?(dn.reduce((a,x)=>a+(x.doneAt-x.t),0)/dn.length/60000).toFixed(1)+'분':'-';
+ $('st').innerHTML=`전체 ${ALL.length}건 · 평균 응답 ${avg}<br>`+(Object.entries(cnt).map(([k,v])=>`${esc(k)} ${v}건`).join(' · ')||'기록 없음')}
+
+function render(){
+ if(!db)return;
+ if(ADMIN&&view==='teacher'){renderT();show('teacher');return}
+ const mine=ALL.find(x=>x.id===ME);
+ if(mine&&mine.status!=='done'&&stu!=='status')stu='status';
+ if(!mine&&stu==='status')stu='form';
+ if(stu==='status'&&mine){
+  $('who').textContent=`${mine.grade}학년 ${mine.cls}반 ${mine.num}번 · ${REASONS[mine.reason]||''}${mine.teacher?' · '+mine.teacher:''}`;
+  $('stt').textContent=STATUS[mine.status]||'';
+  $('again').style.display=mine.status==='done'?'block':'none';
+  $('pos').textContent=mine.status==='wait'?'내 앞에 '+ALL.filter(x=>x.status==='wait'&&x.t<mine.t).length+'명 대기 중':mine.status==='done'?'':'잠시만 기다려 주세요.'}
+ show(stu)}
+
+(async()=>{
+ const user=await claude.use('user');db=await claude.use('db');
+ if(!user||!db){show('nolog');return}
+ ME=await user.id();ADMIN=await user.canEdit();
+ if(!ME){show('nolog');return}
+ view=HASH==='student'?'student':HASH==='teacher'?'teacher':ADMIN?'teacher':'student';
+ if(HASH==='teacher'&&!ADMIN){show('noadmin');return}
+ db.collection('calls').onSnapshot(s=>{
+  ALL=s.docs.map(d=>({id:d.id,...d.data()}));
+  if(ADMIN){if(seen&&ALL.some(x=>x.status==='wait'&&!seen.has(x.id+'_'+x.t))){beep();$('tl').classList.add('flash');setTimeout(()=>$('tl').classList.remove('flash'),1600)}
+   seen=new Set(ALL.map(x=>x.id+'_'+x.t))}
+  render()},e=>{$('load').innerHTML='<div class="card">연결 오류: '+esc((e&&e.message)||'')+'</div>';show('load')});
+ db.doc('config/teachers').onSnapshot(s=>{
+  const d=s.exists?s.data():null;TEACH=d&&Array.isArray(d.list)?d.list:[];
+  [...$('tgrid').children].forEach((e,i)=>{if(document.activeElement!==e)e.value=TEACH[i]||''});
+  if(cur==='step2')buildT()},()=>{});
+ setInterval(()=>{if(cur==='teacher')renderT()},30000);
+})();
+</script>
+</body>
+</html>
