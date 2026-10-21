@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>블랙홀 벽돌깨기</title>
+<style>
+:root{--bg:#f4f1ea;--text:#222;--muted:#777;--accent:#e4572e;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0f14;--text:#eee;--muted:#999;--accent:#ff7a59;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e0f14;--text:#eee;--muted:#999;--accent:#ff7a59;color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;touch-action:none;user-select:none}
+.hud{display:flex;flex-wrap:wrap;gap:2px 10px;justify-content:space-between;width:min(92vw,480px);font-weight:700;font-size:14px}
+.wrap{position:relative;width:min(92vw,480px,calc((100vh - 120px)*0.75));aspect-ratio:3/4}
+canvas{width:100%;height:100%;background:#050818;border-radius:12px;border:1px solid rgba(77,227,255,.5);box-sizing:border-box;box-shadow:0 0 24px rgba(77,227,255,.35),0 0 60px rgba(170,80,255,.25);display:block}
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(5,0,20,.62);border-radius:12px;color:#fff;text-align:center;padding:0 18px}
+.ov h1{margin:0;font-size:30px}.ov p{margin:0;font-size:14px;line-height:1.6;opacity:.95}
+button{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:12px 28px;font-size:16px;font-weight:700;cursor:pointer}
+.hint{color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="hud"><span>점수 <b id="s">0</b> <small id="wx" style="font-weight:400;opacity:.8">날씨 확인 중…</small></span><span>최고 <b id="hi">0</b></span><span>레벨 <b id="l">1</b></span><span>공 <b id="n">3</b></span><span id="lv">❤️❤️❤️</span></div>
+<div class="wrap">
+<canvas id="c" width="480" height="640"></canvas>
+<div class="ov" id="ov"><h1>🕳️ 블랙홀 벽돌깨기</h1>
+<p id="msg">블랙홀 3개가 공 여러 개를 끌어당겨요<br>중심에 빨려 들어간 공은 다른 블랙홀에서 튀어나와요(웜홀)<br>워프한 공은 패들에 닿기 전까지 벽돌 +20점!<br>블랙홀 근처 벽돌은 빨려 들어가요 (점수 없음)<br>목표 점수를 넘기면 다음 레벨!<br>← → 키로 이동</p><p id="wmsg" style="font-weight:700;color:#9fe9ff">🌡️ 날씨 확인 중…</p><div style="display:flex;gap:6px;align-items:center;font-size:13px">🧪 테스트 기온 <input id="tt" type="number" step="1" placeholder="예: 28" style="width:72px;padding:6px 8px;border-radius:8px;border:1px solid #7ad;background:#0b1030;color:#fff"> °C <button id="tb" style="padding:6px 14px;font-size:13px">적용</button></div><button id="btn">시작</button></div>
+</div>
+<div class="hint">← → 이동 · 스페이스바 일시정지</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=480,H=640;
+const ov=document.getElementById('ov'),msg=document.getElementById('msg'),btn=document.getElementById('btn');
+const COLS=8,BW=52,BH=22,GAP=6,OX=(W-(COLS*BW+(COLS-1)*GAP))/2,OY=56,CORE=15;
+const HUES=[0,28,50,140,200,270];
+const holes=[{cx:100,cy:200,rx:60,ry:90,w:.0015,ph:0},{cx:240,cy:260,rx:110,ry:80,w:-.00125,ph:2.1},{cx:380,cy:200,rx:60,ry:90,w:.00175,ph:4.2}].map(h=>({...h,x:0,y:0,m:0}));
+let tempMul=1,brk=[],nextEat=0,paddle,balls,bricks,parts,floats,score,lives,level,tick=0,wait,state='idle',keys={},tx=null;
+const eatCd=()=>{brk=brk.filter(t=>tick-t<600);return Math.max(25,Math.min(240,600/Math.max(brk.length,2.5)))};
+let best=0;try{best=+localStorage.getItem('bh-best')||0}catch(e){}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const G=()=>2400+level*300,nB=()=>Math.min(2+level,6),SP=()=>Math.min(6.2+level*.4,9.5)*tempMul,goal=()=>100*level*(level+3)/2;
+function buildBricks(){bricks=[];holes.forEach(h=>h.m=0);brk=[];nextEat=tick+90;const rows=Math.min(4+level,9);
+ for(let r=0;r<rows;r++)for(let c=0;c<COLS;c++)bricks.push({x:OX+c*(BW+GAP),y:OY+r*(BH+GAP),hue:HUES[r%6],alive:true})}
+function resetBalls(){balls=[];for(let i=0;i<nB();i++)balls.push({x:paddle.x,y:H-60,r:8,vx:0,vy:0,sp:SP(),cd:0,w:false,tr:[]});wait=30}
+function newGame(){score=0;lives=3;level=1;parts=[];floats=[];paddle={x:W/2,w:90,h:12};buildBricks();resetBalls();hud()}
+function hud(){if(score>best){best=score;try{localStorage.setItem('bh-best',best)}catch(e){}}
+ s.textContent=score;hi.textContent=best;l.textContent=level;n.textContent=balls.length;lv.textContent='❤️'.repeat(Math.max(lives,0))}
+function hold(){balls.forEach((b,i)=>{b.x=paddle.x+(i-(balls.length-1)/2)*16;b.y=H-60})}
+function launch(){balls.forEach((b,i)=>{const a=-Math.PI/2+(i-(balls.length-1)/2)*.35+(Math.random()-.5)*.1;b.vx=b.sp*Math.cos(a);b.vy=b.sp*Math.sin(a)})}
+function show(t,m,b){ov.querySelector('h1').textContent=t;msg.textContent=m;btn.textContent=b;ov.style.display='flex'}
+btn.onclick=()=>{if(state==='over'||state==='idle')newGame();ov.style.display='none';state='play'};
+addEventListener('keydown',e=>{keys[e.key]=1;if(e.key===' '){e.preventDefault();if(state==='play'){state='pause';show('⏸ 일시정지','','계속')}else btn.onclick()}});
+addEventListener('keyup',e=>keys[e.key]=0);
+function setX(cx){const r=cv.getBoundingClientRect();tx=(cx-r.left)/r.width*W}
+addEventListener('mousemove',e=>setX(e.clientX));
+addEventListener('touchmove',e=>setX(e.touches[0].clientX),{passive:true});
+addEventListener('touchstart',e=>setX(e.touches[0].clientX),{passive:true});
+function burst(x,y,hue,n){for(let i=0;i<n;i++){const a=Math.random()*6.28,v=1+Math.random()*3;parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:30,hue})}}
+function moveHoles(){for(const h of holes){h.x=h.cx+h.rx*Math.cos(tick*h.w+h.ph);h.y=h.cy+h.ry*Math.sin(tick*h.w*1.3+h.ph)}}
+function update(){
+ tick++;moveHoles();
+ if(keys.ArrowLeft)tx=(tx??paddle.x)-9;if(keys.ArrowRight)tx=(tx??paddle.x)+9;
+ if(tx!==null)paddle.x+=(Math.max(paddle.w/2,Math.min(W-paddle.w/2,tx))-paddle.x)*.45;
+ for(const b of bricks){if(!b.alive)continue;
+  if(b.s){b.s++;const h=holes[b.hi];b.x+=(h.x-BW/2-b.x)*.2;b.y+=(h.y-BH/2-b.y)*.2;b.sc=Math.max(.05,1-b.s/18);
+   if(b.s>=18){b.alive=false;h.m=Math.min(h.m+1,12);burst(h.x,h.y,270,12);floats.push({x:h.x,y:h.y-26,t:45,txt:'냠! 0점'})}continue}
+  const cx=b.x+BW/2,cy=b.y+BH/2;let near=-1;
+  for(let i=0;i<holes.length;i++){const d=Math.hypot(holes[i].x-cx,holes[i].y-cy);if(d<100+holes[i].m*4)near=i}
+  if(near>=0){b.ch=(b.ch||0)+1;b.hi=near;if(b.ch>=60)b.s=1}else if(b.ch>0)b.ch=Math.max(0,b.ch-2)}
+ for(const p of parts){p.x+=p.vx;p.y+=p.vy;p.l--}parts=parts.filter(p=>p.l>0);
+ for(const f of floats){f.y-=.6;f.t--}floats=floats.filter(f=>f.t>0);
+ if(wait>0){hold();if(--wait===0)launch();return}
+ const py=H-40;
+ for(const ball of balls){
+  ball.tr.push({x:ball.x,y:ball.y});if(ball.tr.length>8)ball.tr.shift();
+  if(ball.cd>0)ball.cd--;
+  for(let i=0;i<holes.length;i++){const h=holes[i],dx=h.x-ball.x,dy=h.y-ball.y,d=Math.hypot(dx,dy);
+   const f=G()*(1+h.m*.06)/(d*d+400);ball.vx+=dx/d*f;ball.vy+=dy/d*f;
+   if(d<CORE&&ball.cd===0){const j=(i+1+Math.floor(Math.random()*(holes.length-1)))%holes.length,o=holes[j],m=Math.hypot(ball.vx,ball.vy)||1;
+    burst(h.x,h.y,270,14);ball.x=o.x+ball.vx/m*(CORE+12);ball.y=o.y+ball.vy/m*(CORE+12);ball.cd=40;ball.w=true;ball.tr=[];
+    burst(o.x,o.y,190,14);floats.push({x:o.x,y:o.y-24,t:40,txt:'워프!'});break}}
+  const m=Math.hypot(ball.vx,ball.vy)||1;ball.vx*=ball.sp/m;ball.vy*=ball.sp/m;
+  ball.x+=ball.vx;ball.y+=ball.vy;
+  if(ball.x<ball.r){ball.x=ball.r;ball.vx=Math.abs(ball.vx)}
+  if(ball.x>W-ball.r){ball.x=W-ball.r;ball.vx=-Math.abs(ball.vx)}
+  if(ball.y<ball.r){ball.y=ball.r;ball.vy=Math.abs(ball.vy)}
+  if(ball.vy>0&&ball.y+ball.r>=py&&ball.y+ball.r<=py+paddle.h+10&&Math.abs(ball.x-paddle.x)<=paddle.w/2+ball.r){
+   ball.sp=Math.min(ball.sp*1.005,11*tempMul);const off=(ball.x-paddle.x)/(paddle.w/2),a=-Math.PI/2+off;
+   ball.vx=ball.sp*Math.cos(a);ball.vy=ball.sp*Math.sin(a);ball.y=py-ball.r;ball.w=false}
+  for(const b of bricks){if(!b.alive||b.s)continue;
+   if(ball.x+ball.r>b.x&&ball.x-ball.r<b.x+BW&&ball.y+ball.r>b.y&&ball.y-ball.r<b.y+BH){
+    b.alive=false;brk.push(tick);const pts=ball.w?20:10;score+=pts;burst(b.x+BW/2,b.y+BH/2,ball.w?190:b.hue,9);
+    floats.push({x:b.x+BW/2,y:b.y,t:35,txt:'+'+pts});
+    const ox=Math.min(ball.x+ball.r-b.x,b.x+BW-(ball.x-ball.r)),oy=Math.min(ball.y+ball.r-b.y,b.y+BH-(ball.y-ball.r));
+    if(ox<oy)ball.vx*=-1;else ball.vy*=-1;break}}
+ }
+ balls=balls.filter(b=>b.y<=H+20);
+ if(score>=goal()){level++;state='level';buildBricks();resetBalls();hud();show('🎉 레벨 '+(level-1)+' 클리어!','점수 '+score+' · 다음 목표 '+goal()+'점 · 공 '+nB()+'개, 블랙홀이 더 강해져요','다음 레벨');return}
+ if(!bricks.some(b=>b.alive))buildBricks();
+ if(balls.length===0){lives--;hud();if(lives<=0){state='over';show('게임 오버','최종 점수: '+score+' (최고 '+best+')','다시 시작');return}resetBalls()}
+ hud();
+}
+function drawHole(h){
+ const R=CORE+34+h.m*1.5,g=ctx.createRadialGradient(h.x,h.y,CORE*.6,h.x,h.y,R);
+ g.addColorStop(0,'rgba(150,60,255,.75)');g.addColorStop(1,'rgba(150,60,255,0)');
+ ctx.fillStyle=g;ctx.beginPath();ctx.arc(h.x,h.y,R,0,7);ctx.fill();
+ ctx.strokeStyle='rgba(190,130,255,.9)';ctx.lineWidth=3;
+ for(let k=0;k<3;k++){const a=tick*.08+k*2.1;ctx.beginPath();ctx.arc(h.x,h.y,CORE+6,a,a+1.3);ctx.stroke()}
+ ctx.fillStyle='#000';ctx.beginPath();ctx.arc(h.x,h.y,CORE,0,7);ctx.fill();
+}
+function drawBg(){
+ const t=performance.now()/1000;
+ let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#050818');g.addColorStop(.6,'#0a0f2e');g.addColorStop(1,'#1a0a35');
+ ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ const sh=(t*70)%(W*2)-W;g=ctx.createLinearGradient(sh,0,sh+W,H);
+ ['rgba(0,255,255,0)','rgba(0,255,255,.11)','rgba(255,0,200,.11)','rgba(255,240,0,.07)','rgba(120,80,255,.11)','rgba(0,255,255,0)'].forEach((c,i,a)=>g.addColorStop(i/(a.length-1),c));
+ ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='rgba(80,220,255,.16)';ctx.lineWidth=1;const vy=300;
+ for(let i=-10;i<=10;i++){ctx.beginPath();ctx.moveTo(W/2+i*8,vy);ctx.lineTo(W/2+i*90,H);ctx.stroke()}
+ for(let k=0;k<10;k++){const f=((k+t*.4)%10)/10,y=vy+(H-vy)*f*f;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+ for(let i=0;i<36;i++){ctx.fillStyle='rgba(180,240,255,'+(.3+.5*Math.abs(Math.sin(t*1.5+i)))+')';ctx.fillRect((i*97+13)%W,(i*181+29)%H,2,2)}
+ ctx.fillStyle='rgba(255,255,255,.035)';for(let y=0;y<H;y+=4)ctx.fillRect(0,y,W,1);
+ const sy=(t*90)%(H+80)-40;g=ctx.createLinearGradient(0,sy,0,sy+80);
+ g.addColorStop(0,'rgba(120,255,255,0)');g.addColorStop(.5,'rgba(120,255,255,.12)');g.addColorStop(1,'rgba(120,255,255,0)');
+ ctx.fillStyle=g;ctx.fillRect(0,sy,W,80);
+}
+function draw(){
+ drawBg();
+ for(const h of holes){ctx.strokeStyle='rgba(150,60,255,.18)';ctx.setLineDash([4,6]);ctx.lineWidth=1;ctx.beginPath();ctx.arc(h.x,h.y,100+h.m*4,0,7);ctx.stroke();ctx.setLineDash([])}
+ holes.forEach(drawHole);
+ for(const b of bricks){if(!b.alive)continue;
+  if(b.ch>8&&!b.s){const h=holes[b.hi];ctx.strokeStyle=`rgba(190,130,255,${Math.min(b.ch/60,1)*.55})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(b.x+BW/2,b.y+BH/2);ctx.lineTo(h.x,h.y);ctx.stroke()}
+  ctx.save();const jx=b.ch>0&&!b.s?(Math.random()-.5)*Math.min(b.ch/60,1)*4:0;
+  ctx.translate(b.x+BW/2+jx,b.y+BH/2);if(b.s){ctx.scale(b.sc,b.sc);ctx.rotate(b.s*.25)}
+  ctx.shadowColor=`hsl(${b.hue} 100% 65%)`;ctx.shadowBlur=10;ctx.fillStyle=`hsla(${b.hue},90%,60%,.5)`;ctx.strokeStyle=`hsl(${b.hue} 100% 72%)`;ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(-BW/2,-BH/2,BW,BH,5);ctx.fill();ctx.stroke();ctx.restore()}ctx.shadowBlur=0;
+ for(const p of parts){ctx.globalAlpha=p.l/30;ctx.fillStyle=`hsl(${p.hue} 85% 62%)`;ctx.fillRect(p.x,p.y,4,4)}ctx.globalAlpha=1;
+ ctx.shadowColor='#4de3ff';ctx.shadowBlur=14;ctx.fillStyle='#e8f6ff';ctx.beginPath();ctx.roundRect(paddle.x-paddle.w/2,H-40,paddle.w,paddle.h,6);ctx.fill();ctx.shadowBlur=0;
+ for(const ball of balls){const bc=ball.w?'#4de3ff':'#ff7a59';ctx.fillStyle=bc;
+  ball.tr.forEach((t,i)=>{ctx.globalAlpha=i/ball.tr.length*.4;ctx.beginPath();ctx.arc(t.x,t.y,ball.r*i/ball.tr.length,0,7);ctx.fill()});
+  ctx.globalAlpha=1;ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,7);ctx.fill();
+  if(ball.w){ctx.strokeStyle=bc;ctx.lineWidth=2;ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r+4,0,7);ctx.stroke()}}
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 15px sans-serif';
+ for(const f of floats){ctx.globalAlpha=Math.min(1,f.t/20);ctx.fillStyle=f.txt==='워프!'?'#4de3ff':'#e8f6ff';ctx.fillText(f.txt,f.x,f.y)}ctx.globalAlpha=1;
+ {const pg=level>1?100*(level-1)*(level+2)/2:0,f=Math.max(0,Math.min(1,(score-pg)/(goal()-pg)));ctx.fillStyle='rgba(77,227,255,.25)';ctx.fillRect(0,0,W,5);ctx.fillStyle='#4de3ff';ctx.fillRect(0,0,W*f,5);ctx.fillStyle='#9fe9ff';ctx.font='12px sans-serif';ctx.fillText('레벨 '+level+' 목표 '+score+' / '+goal()+'점',W/2,20)}
+ if(wait>0&&state==='play'){ctx.fillStyle='#9fb4d6';ctx.font='14px sans-serif';ctx.fillText('잠시 후 발사!',W/2,H-90)}
+}
+function loop(){if(state==='play')update();draw();requestAnimationFrame(loop)}
+let tested=false;function applyTemp(t,src){if(src==='test')tested=true;else if(tested)return;const T=Math.round(t),nm=t>=25?1.25:t<10?.8:1,who=src==='test'?'테스트 기온 ':'오늘 서울 ';
+ balls.forEach(b=>b.sp*=nm/tempMul);tempMul=nm;
+ document.getElementById('wx').textContent=(src==='test'?'테스트 ':'오늘 서울 ')+T+'°C';
+ document.getElementById('wmsg').textContent='🌡️ '+who+T+'°C — '+(nm>1?'25°C 이상! 공이 빠르게 날아요 🔥':nm<1?'10°C 미만! 공이 느리게 날아요 ❄️':'공 속도는 보통이에요')}
+tb.onclick=()=>{const v=parseFloat(tt.value);if(Number.isFinite(v))applyTemp(v,'test')};
+tt.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')tb.onclick()};
+(async()=>{const el=document.getElementById('wx'),ac=new AbortController(),to=setTimeout(()=>ac.abort(),8000);
+ try{const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current=temperature_2m&timezone=Asia%2FSeoul',{signal:ac.signal});
+  if(!r.ok)throw 0;const t=(await r.json()).current.temperature_2m;if(typeof t!=='number')throw 0;
+  applyTemp(t,'live')}
+ catch(e){if(tested)return;el.textContent='날씨 정보를 불러올 수 없어요';document.getElementById('wmsg').textContent='🌡️ 날씨 정보를 불러올 수 없어요 — 공 속도는 보통이에요'}finally{clearTimeout(to)}})();
+newGame();moveHoles();loop();
+</script>
+</body>
+</html>
